@@ -92,6 +92,47 @@ router.post('/', async (req, res) => {
   }
 });
 
+// update product
+router.put('/:id', async (req, res) => {
+  try {
+    const product = await Product.findByPk(req.params.id);
+
+    if (!product) {
+      res.status(404).json({ message: 'Product not found' });
+      return;
+    }
+
+    await product.update(req.body);
+
+    if (req.body.tagIds && req.body.tagIds.length) {
+      await ProductTag.destroy({ where: { product_id: product.id } });
+
+      const productTagIdArr = req.body.tagIds.map((tag_id) => ({
+        product_id: product.id,
+        tag_id,
+      }));
+
+      await ProductTag.bulkCreate(productTagIdArr);
+    }
+
+    const updatedProduct = await Product.findByPk(req.params.id, {
+      include: [
+        Category,
+        {
+          model: Tag,
+          through: ProductTag,
+          as: "tags",
+        },
+      ],
+    });
+
+    res.status(200).json(updatedProduct);
+  } catch (err) {
+    console.log(err);
+    res.status(400).json(err);
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   // delete one product by its `id` value
   try {
